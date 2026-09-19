@@ -1,0 +1,137 @@
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    user-select: none;
+}
+
+body, html {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #0b0e14;
+    color: #e2e8f0;
+}
+
+/* Главный контейнер сцены */
+#game-container {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+}
+
+/* Фон сцены */
+#bg-image {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    z-index: 1;
+}
+
+/* Верхняя панель параметра */
+#stat-bar {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    background: rgba(15, 23, 42, 0.85);
+    border: 1px solid #00f0ff;
+    padding: 10px 20px;
+    border-radius: 8px;
+    box-shadow: 0 0 10px rgba(0, 240, 255, 0.3);
+    font-weight: bold;
+    font-size: 1.1rem;
+    z-index: 10;
+}
+
+#stat-value {
+    color: #00f0ff;
+}
+
+/* Контейнер персонажа */
+#character-container {
+    position: absolute;
+    bottom: 150px;
+    left: 50%;
+    transform: translateX(-50%);
+    height: 60vh;
+    display: flex;
+    justify-content: center;
+    align-items: flex-end;
+    z-index: 2;
+}
+
+#character-image {
+    max-height: 100%;
+    max-width: 90vw;
+    object-fit: contain;
+}
+
+/* Диалоговое окно */
+#dialogue-box {
+    position: absolute;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 90%;
+    max-width: 1000px;
+    height: 140px;
+    background: rgba(15, 23, 42, 0.9);
+    border: 2px solid #38bdf8;
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.8);
+    z-index: 5;
+}
+
+#speaker-name {
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: #00f0ff;
+    margin-bottom: 8px;
+}
+
+#dialogue-text {
+    font-size: 1.05rem;
+    line-height: 1.4;
+}
+
+/* Контейнер выборов */
+#choice-container {
+    position: absolute;
+    top: 35%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    width: 80%;
+    max-width: 600px;
+    z-index: 10;
+}
+
+.choice-btn {
+    background: rgba(30, 41, 59, 0.95);
+    border: 1px solid #00f0ff;
+    color: #e2e8f0;
+    padding: 14px 20px;
+    border-radius: 8px;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-align: left;
+}
+
+.choice-btn:hover {
+    background: #00f0ff;
+    color: #0b0e14;
+    font-weight: bold;
+    box-shadow: 0 0 15px rgba(0, 240, 255, 0.6);
+}

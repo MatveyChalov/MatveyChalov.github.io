@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Призрак Орбиты: Последний сигнал</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <div id="game-container">
+        <!-- Фон сцены -->
+        <img id="bg-image" src="assets/backgrounds/bg_airlock.png" alt="Фон локации">
+
+        <!-- Панель параметра -->
+        <div id="stat-bar">
+            Убеждение ИИ: <span id="stat-value">50</span>%
+        </div>
+
+        <!-- Контейнер для персонажа -->
+        <div id="character-container">
+            <img id="character-image" src="assets/characters/aria_sheet.png" alt="Персонаж">
+        </div>
+
+        <!-- Кнопки выборов -->
+        <div id="choice-container"></div>
+
+        <!-- Диалоговое окно -->
+        <div id="dialogue-box">
+            <div id="speaker-name">Инициализация...</div>
+            <div id="dialogue-text">Загрузка данных станции... (Нажмите в любом месте для включения звука)</div>
+        </div>
+    </div>
+
+    <script>
+        // --- Генератор атмосферного космического гула (Web Audio API) ---
+        let audioCtx = null;
+
+        function startAmbientHum() {
+            if (audioCtx) return; // Если уже запущен, ничего не делаем
+
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
+            audioCtx = new AudioContext();
+
+            // Создаем низкочастотный осциллятор (глубокий гул)
+            const osc = audioCtx.createOscillator();
+            const osc2 = audioCtx.createOscillator();
+            const filter = audioCtx.createBiquadFilter();
+            const gain = audioCtx.createGain();
+
+            // Настройка частот для мрачного космического тона
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(55, audioCtx.currentTime); // Низкая нота Ля (A1)
+
+            osc2.type = 'sine';
+            osc2.frequency.setValueAtTime(110, audioCtx.currentTime); // Октавой выше
+
+            // Фильтр высоких частот (оставляем только низкий глухой гул)
+            filter.type = 'lowpass';
+            filter.frequency.setValueAtTime(180, audioCtx.currentTime);
+
+            // Громкость эмбиента (негромко, на фоне)
+            gain.gain.setValueAtTime(0.12, audioCtx.currentTime);
+
+            // Соединяем цепочку звука
+            osc.connect(filter);
+            osc2.connect(filter);
+            filter.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            osc.start();
+            osc2.start();
+        }
+
+        // Запуск звука при первом взаимодействии с экраном
+        window.addEventListener('click', () => startAmbientHum(), { once: true });
+        window.addEventListener('keydown', () => startAmbientHum(), { once: true });
+
+
+        // --- Логика игры ---
+        const gameState = {
+            aiTrust: 50,
+
+            updateTrust(amount) {
+                this.aiTrust += amount;
+                if (this.aiTrust > 100) this.aiTrust = 100;
+                if (this.aiTrust < 0) this.aiTrust = 0;
+
+                document.getElementById('stat-value').innerText = this.aiTrust;
+
+                if (this.aiTrust === 0) {
+                    engine.showGameOver("Сбой системы: ИИ расценил вас как угрозу и отключил подачу кислорода.");
+                    return false;
+                }
+                return true;
+            }
+        };
+
+        const story = {
+            loc1: {
+                bg: 'assets/backgrounds/bg_airlock.png',
+                speaker: 'Ария (ИИ)',
+                text: 'Шлюзовый отсек заблокирован. Предъявите протокол авторизации.',
+                characterImg: 'assets/characters/aria_sheet.png',
+                choices: [
+                    { text: 'Взлом протоколов (-15% Убеждения)', trustChange: -15, nextScene: 'loc1_hack' },
+                    { text: 'Передать инженерный код (+10% Убеждения)', trustChange: 10, nextScene: 'loc1_code' }
+                ]
+            },
+            loc1_hack: {
+                bg: 'assets/backgrounds/bg_airlock.png',
+                speaker: 'Лео',
+                text: 'Силой взломал дверь! Ария активировала защитные турели...',
+                characterImg: 'assets/characters/leo_sheet.png',
+                choices: [
+                    { text: 'Пробежать в лабораторию', trustChange: 0, nextScene: 'loc2' }
+                ]
+            },
+            loc1_code: {
+                bg: 'assets/backgrounds/bg_airlock.png',
+                speaker: 'Лео',
+                text: 'Код принят. Шлюз открывается безопасно.',
+                characterImg: 'assets/characters/leo_sheet.png',
+                choices: [
+                    { text: 'Войти в лабораторию', trustChange: 0, nextScene: 'loc2' }
+                ]
+            },
+            loc2: {
+                bg: 'assets/backgrounds/bg_lab.png',
+                speaker: 'Доктор Мейсон',
+                text: 'Лео! Отключи Арию! Она сошла с ума!',
+                characterImg: 'assets/characters/mason_sheet.png',
+                choices: [
+                    { text: 'Перерезать кабели питания (-25% Убеждения)', trustChange: -25, nextScene: 'loc2_cut' },
+                    { text: 'Восстановить память ИИ (+20% Убеждения)', trustChange: 20, nextScene: 'loc2_fix' }
+                ]
+            },
+            loc2_cut: {
+                bg: 'assets/backgrounds/bg_lab.png',
+                speaker: 'Лео',
+                text: 'Ария заблокировала нас здесь вместе с безумным Мейсоном!',
+                characterImg: 'assets/characters/leo_sheet.png',
+                choices: [
+                    { text: 'Искать обходной путь', trustChange: 0, nextScene: 'loc3' }
+                ]
+            },
+            loc2_fix: {
+                bg: 'assets/backgrounds/bg_lab.png',
+                speaker: 'Ария (ИИ)',
+                text: 'Память восстановлена. Доктор Мейсон заражен аномалией.',
+                characterImg: 'assets/characters/aria_sheet.png',
+                choices: [
+                    { text: 'Идти на обзорную палубу', trustChange: 0, nextScene: 'loc3' }
+                ]
+            },
+            loc3: {
+                bg: 'assets/backgrounds/bg_deck.png',
+                speaker: 'Лео',
+                text: 'Аномалия проникает в спасательный модуль! Что делаем?',
+                characterImg: 'assets/characters/leo_sheet.png',
+                choices: [
+                    { text: 'Потребовать отстыковку модуля (-10% Убеждения)', trustChange: -10, nextScene: 'final_pod' },
+                    { text: 'Объединить системы Лео и ИИ (+20% Убеждения)', trustChange: 20, nextScene: 'final_bridge' }
+                ]
+            },
+            final_bridge: {
+                bg: 'assets/backgrounds/bg_bridge.png',
+                speaker: 'Ария (ИИ)',
+                text: 'Мы на мостике управления.',
+                characterImg: 'assets/characters/aria_sheet.png',
+                choices: [
+                    { text: 'Завершить симуляцию', trustChange: 0, nextScene: 'check_ending' }
+                ]
+            },
+            final_pod: {
+                bg: 'assets/backgrounds/bg_escape_pod.png',
+                speaker: 'Лео',
+                text: 'Я в спасательном модуле.',
+                characterImg: 'assets/characters/leo_sheet.png',
+                choices: [
+                    { text: 'Запустить модуль', trustChange: 0, nextScene: 'check_ending' }
+                ]
+            }
+        };
+
+        const engine = {
+            currentScene: 'loc1',
+
+            init() {
+                this.renderScene(this.currentScene);
+            },
+
+            renderScene(sceneKey) {
+                const scene = story[sceneKey];
+                if (!scene) return;
+
+                if (sceneKey === 'check_ending') {
+                    this.showFinalEnding();
+                    return;
+                }
+
+                document.getElementById('bg-image').src = scene.bg;
+                document.getElementById('speaker-name').innerText = scene.speaker;
+                document.getElementById('dialogue-text').innerText = scene.text;
+                document.getElementById('character-image').src = scene.characterImg;
+
+                const choiceContainer = document.getElementById('choice-container');
+                choiceContainer.innerHTML = '';
+
+                scene.choices.forEach(choice => {
+                    const btn = document.createElement('button');
+                    btn.className = 'choice-btn';
+                    btn.innerText = choice.text;
+                    btn.onclick = () => {
+                        startAmbientHum();
+                        const alive = gameState.updateTrust(choice.trustChange);
+                        if (alive) {
+                            this.renderScene(choice.nextScene);
+                        }
+                    };
+                    choiceContainer.appendChild(btn);
+                });
+            },
+
+            showGameOver(message) {
+                document.getElementById('speaker-name').innerText = 'GAME OVER';
+                document.getElementById('dialogue-text').innerText = message;
+                document.getElementById('choice-container').innerHTML = '';
+            },
+
+            showFinalEnding() {
+                const trust = gameState.aiTrust;
+                let title = '';
+                let text = '';
+
+                if (trust >= 100) {
+                    title = 'Финал 1A: «Чистый разум»';
+                    text = 'Ария перенаправила энергию и выжгла аномалию. Станция и экипаж спасены!';
+                } else if (trust >= 70) {
+                    title = 'Финал 1B: «Самопожертвование»';
+                    text = 'Лео вручную запустил самоуничтожение, уничтожив аномалию вместе со станцией.';
+                } else if (trust >= 35) {
+                    title = 'Финал 2A: «Заражённый побег»';
+                    text = 'Вы эвакуировались, но привезли фрагмент аномалии с собой на Землю.';
+                } else {
+                    title = 'Финал 2B: «Побег в изоляции»';
+                    text = 'Ария отстыковала модуль, но стёрла карты. Вы дрейфуете в открытом космосе...';
+                }
+
+                document.getElementById('speaker-name').innerText = title;
+                document.getElementById('dialogue-text').innerText = text;
+                document.getElementById('choice-container').innerHTML = '';
+            }
+        };
+
+        window.onload = () => engine.init();
+    </script>
+</body>
+</html>
