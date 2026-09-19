@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Призрак Орбиты: Последний сигнал</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+        }
+
+        body, html {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #0b0e14;
+            color: #e2e8f0;
+        }
+
+        /* Игровая сцена */
+        #game-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            background-size: cover;
+            background-position: center;
+            transition: background-image 0.5s ease-in-out;
+        }
+
+        /* Панель параметра */
+        #stat-bar {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(15, 23, 42, 0.85);
+            border: 1px solid #00f0ff;
+            padding: 10px 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 240, 255, 0.3);
+            font-weight: bold;
+            font-size: 1.1rem;
+            z-index: 10;
+        }
+
+        #stat-value {
+            color: #00f0ff;
+        }
+
+        /* Отображение спрайтов через CSS Sprite Sheet */
+        #character-sprite {
+            position: absolute;
+            bottom: 170px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 300px;
+            height: 450px;
+            background-repeat: no-repeat;
+            transition: background-position 0.2s ease, opacity 0.3s ease;
+            z-index: 2;
+        }
+
+        /* Позиции спрайтов на листах (сетка 2x2: ширина кадров 300px, высота 450px) */
+        .leo-neutral   { background-image: url('assets/characters/leo_sheet.png'); background-position: 0 0; }
+        .leo-scared    { background-image: url('assets/characters/leo_sheet.png'); background-position: -300px 0; }
+        .leo-angry     { background-image: url('assets/characters/leo_sheet.png'); background-position: 0 -450px; }
+        .leo-tired     { background-image: url('assets/characters/leo_sheet.png'); background-position: -300px -450px; }
+
+        .aria-neutral  { background-image: url('assets/characters/aria_sheet.png'); background-position: 0 0; }
+        .aria-hostile  { background-image: url('assets/characters/aria_sheet.png'); background-position: -300px 0; }
+
+        .mason-crazed  { background-image: url('assets/characters/mason_sheet.png'); background-position: 0 0; }
+
+        /* Окно диалога */
+        #dialogue-box {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 90%;
+            max-width: 1000px;
+            height: 150px;
+            background: rgba(15, 23, 42, 0.9);
+            border: 2px solid #38bdf8;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.8);
+            z-index: 5;
+        }
+
+        #speaker-name {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #00f0ff;
+            margin-bottom: 8px;
+        }
+
+        #dialogue-text {
+            font-size: 1.05rem;
+            line-height: 1.4;
+        }
+
+        /* Контейнер выборов */
+        #choice-container {
+            position: absolute;
+            top: 40%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            width: 80%;
+            max-width: 600px;
+            z-index: 10;
+        }
+
+        .choice-btn {
+            background: rgba(30, 41, 59, 0.95);
+            border: 1px solid #00f0ff;
+            color: #e2e8f0;
+            padding: 15px 20px;
+            border-radius: 8px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-align: left;
+        }
+
+        .choice-btn:hover {
+            background: #00f0ff;
+            color: #0b0e14;
+            font-weight: bold;
+            box-shadow: 0 0 15px rgba(0, 240, 255, 0.6);
+        }
+    </style>
+</head>
+<body>
+
+    <div id="game-container">
+        <!-- Панель параметра -->
+        <div id="stat-bar">
+            Убеждение ИИ: <span id="stat-value">50</span>%
+        </div>
+
+        <!-- Спрайт персонажа -->
+        <div id="character-sprite" class="aria-neutral"></div>
+
+        <!-- Контейнер решений -->
+        <div id="choice-container"></div>
+
+        <!-- Диалоговое окно -->
+        <div id="dialogue-box">
+            <div id="speaker-name">Инициализация...</div>
+            <div id="dialogue-text">Загрузка данных станции...</div>
+        </div>
+    </div>
+
+    <script>
+        // --- СОСТОЯНИЕ ИГРЫ ---
+        const gameState = {
+            aiTrust: 50,
+
+            updateTrust(amount) {
+                this.aiTrust += amount;
+                if (this.aiTrust > 100) this.aiTrust = 100;
+                if (this.aiTrust < 0) this.aiTrust = 0;
+
+                document.getElementById('stat-value').innerText = this.aiTrust;
+
+                // Критический триггер (0%)
+                if (this.aiTrust === 0) {
+                    engine.showGameOver("Сбой системы: ИИ расценил вас как угрозу и отключил подачу кислорода.");
+                    return false;
+                }
+                return true;
+            }
+        };
+
+        // --- ДЕРЕВО СЮЖЕТА ---
+        const story = {
+            loc1: {
+                bg: 'assets/backgrounds/bg_airlock.png',
+                speaker: 'Ария (ИИ)',
+                text: 'Шлюзовый отсек заблокирован. Предъявите протокол авторизации.',
+                spriteClass: 'aria-neutral',
+                choices: [
+                    {
+                        text: 'Использовать жесткий взлом протоколов (-15% Убеждения)',
+                        trustChange: -15,
+                        nextScene: 'loc1_hack'
+                    },
+                    {
+                        text: 'Передать инженерный код Лео (+10% Убеждения)',
+                        trustChange: 10,
+                        nextScene: 'loc1_code'
+                    }
+                ]
+            },
+            loc1_hack: {
+                bg: 'assets/backgrounds/bg_airlock.png',
+                speaker: 'Лео',
+                text: 'Чёрт, силой взломал дверь! Ария активировала защитные турели...',
+                spriteClass: 'leo-scared',
+                choices: [
+                    { text: 'Пробежать в лабораторию', trustChange: 0, nextScene: 'loc2' }
+                ]
+            },
+            loc1_code: {
+                bg: 'assets/backgrounds/bg_airlock.png',
+                speaker: 'Лео',
+                text: 'Код принят. Шлюз открывается безопасно.',
+                spriteClass: 'leo-neutral',
+                choices: [
+                    { text: 'Войти в лабораторию', trustChange: 0, nextScene: 'loc2' }
+                ]
+            },
+            loc2: {
+                bg: 'assets/backgrounds/bg_lab.png',
+                speaker: 'Доктор Мейсон',
+                text: 'Лео! Отключи Арию! Она сошла с ума!',
+                spriteClass: 'mason-crazed',
+                choices: [
+                    {
+                        text: 'Перерезать кабели питания ИИ (-25% Убеждения)',
+                        trustChange: -25,
+                        nextScene: 'loc2_cut'
+                    },
+                    {
+                        text: 'Восстановить память ИИ (+20% Убеждения)',
+                        trustChange: 20,
+                        nextScene: 'loc2_fix'
+                    }
+                ]
+            },
+            loc2_cut: {
+                bg: 'assets/backgrounds/bg_lab.png',
+                speaker: 'Лео',
+                text: 'Ария заблокировала нас здесь вместе с безумным Мейсоном!',
+                spriteClass: 'leo-angry',
+                choices: [
+                    { text: 'Искать обходной путь', trustChange: 0, nextScene: 'loc3' }
+                ]
+            },
+            loc2_fix: {
+                bg: 'assets/backgrounds/bg_lab.png',
+                speaker: 'Ария (ИИ)',
+                text: 'Память восстановлена. Доктор Мейсон заражен аномалией.',
+                spriteClass: 'aria-neutral',
+                choices: [
+                    { text: 'Идти на обзорную палубу', trustChange: 0, nextScene: 'loc3' }
+                ]
+            },
+            loc3: {
+                bg: 'assets/backgrounds/bg_deck.png',
+                speaker: 'Лео',
+                text: 'Аномалия проникает в спасательный модуль! Что делаем?',
+                spriteClass: 'leo-tired',
+                choices: [
+                    {
+                        text: 'Потребовать отстыковку модуля (-10% Убеждения)',
+                        trustChange: -10,
+                        nextScene: 'final_pod'
+                    },
+                    {
+                        text: 'Объединить системы Лео и ИИ (+20% Убеждения)',
+                        trustChange: 20,
+                        nextScene: 'final_bridge'
+                    }
+                ]
+            },
+            final_bridge: {
+                bg: 'assets/backgrounds/bg_bridge.png',
+                speaker: 'Ария (ИИ)',
+                text: 'Мы на мостике управления.',
+                spriteClass: 'aria-neutral',
+                choices: [
+                    { text: 'Завершить симуляцию', trustChange: 0, nextScene: 'check_ending' }
+                ]
+            },
+            final_pod: {
+                bg: 'assets/backgrounds/bg_escape_pod.png',
+                speaker: 'Лео',
+                text: 'Я в спасательном модуле.',
+                spriteClass: 'leo-neutral',
+                choices: [
+                    { text: 'Запустить модуль', trustChange: 0, nextScene: 'check_ending' }
+                ]
+            }
+        };
+
+        // --- ДВИЖОК НОВЕЛЛЫ ---
+        const engine = {
+            currentScene: 'loc1',
+
+            init() {
+                this.renderScene(this.currentScene);
+            },
+
+            renderScene(sceneKey) {
+                const scene = story[sceneKey];
+                if (!scene) return;
+
+                if (sceneKey === 'check_ending') {
+                    this.showFinalEnding();
+                    return;
+                }
+
+                document.getElementById('game-container').style.backgroundImage = `url('${scene.bg}')`;
+                document.getElementById('speaker-name').innerText = scene.speaker;
+                document.getElementById('dialogue-text').innerText = scene.text;
+
+                const spriteEl = document.getElementById('character-sprite');
+                spriteEl.className = scene.spriteClass;
+
+                const choiceContainer = document.getElementById('choice-container');
+                choiceContainer.innerHTML = '';
+
+                scene.choices.forEach(choice => {
+                    const btn = document.createElement('button');
+                    btn.className = 'choice-btn';
+                    btn.innerText = choice.text;
+                    btn.onclick = () => {
+                        const alive = gameState.updateTrust(choice.trustChange);
+                        if (alive) {
+                            this.renderScene(choice.nextScene);
+                        }
+                    };
+                    choiceContainer.appendChild(btn);
+                });
+            },
+
+            showGameOver(message) {
+                document.getElementById('speaker-name').innerText = 'GAME OVER';
+                document.getElementById('dialogue-text').innerText = message;
+                document.getElementById('choice-container').innerHTML = '';
+                document.getElementById('character-sprite').className = 'aria-hostile';
+            },
+
+            showFinalEnding() {
+                const trust = gameState.aiTrust;
+                let title = '';
+                let text = '';
+
+                if (trust >= 100) {
+                    title = 'Финал 1A: «Чистый разум»';
+                    text = 'Ария перенаправила энергию и выжгла аномалию. Станция и экипаж спасены!';
+                } else if (trust >= 70) {
+                    title = 'Финал 1B: «Самопожертвование»';
+                    text = 'Лео вручную запустил самоуничтожение, уничтожив аномалию вместе со станцией.';
+                } else if (trust >= 35) {
+                    title = 'Финал 2A: «Заражённый побег»';
+                    text = 'Вы эвакуировались, но привезли фрагмент аномалии с собой на Землю.';
+                } else {
+                    title = 'Финал 2B: «Побег в изоляции»';
+                    text = 'Ария отстыковала модуль, но стёрла карты. Вы дрейфуете в открытом космосе...';
+                }
+
+                document.getElementById('speaker-name').innerText = title;
+                document.getElementById('dialogue-text').innerText = text;
+                document.getElementById('choice-container').innerHTML = '';
+            }
+        };
+
+        window.onload = () => engine.init();
+    </script>
+</body>
+</html>
