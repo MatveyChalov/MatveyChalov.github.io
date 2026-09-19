@@ -21,17 +21,18 @@
             color: #e2e8f0;
         }
 
-        /* Игровая сцена */
+        /* Игровая сцена на весь экран */
         #game-container {
             position: relative;
             width: 100vw;
             height: 100vh;
             background-size: cover;
             background-position: center;
+            background-repeat: no-repeat;
             transition: background-image 0.5s ease-in-out;
         }
 
-        /* Панель параметра (CSS UI) */
+        /* Панель параметра "Убеждение ИИ" */
         #stat-bar {
             position: absolute;
             top: 20px;
@@ -50,31 +51,34 @@
             color: #00f0ff;
         }
 
-        /* Отображение спрайтов из папки assets/characters/ */
+        /* Спрайт персонажа (адаптивное позиционирование) */
         #character-sprite {
             position: absolute;
-            bottom: 170px;
+            bottom: 180px;
             left: 50%;
             transform: translateX(-50%);
             width: 300px;
             height: 450px;
+            max-height: 55vh;
+            background-size: 200% 200%; /* Карта спрайтов 2х2 */
             background-repeat: no-repeat;
             transition: background-position 0.2s ease, opacity 0.3s ease;
             z-index: 2;
         }
 
-        /* Сетка спрайт-листов (300x450px) */
-        .leo-neutral   { background-image: url('assets/characters/leo_sheet.png'); background-position: 0 0; }
-        .leo-scared    { background-image: url('assets/characters/leo_sheet.png'); background-position: -300px 0; }
-        .leo-angry     { background-image: url('assets/characters/leo_sheet.png'); background-position: 0 -450px; }
-        .leo-tired     { background-image: url('assets/characters/leo_sheet.png'); background-position: -300px -450px; }
+        /* Настройка позиций кадров на листах sheet.png (сетка 2x2) */
+        /* Верхний левый (0% 0%), Верхний правый (100% 0%), Нижний левый (0% 100%), Нижний правый (100% 100%) */
+        .leo-neutral   { background-image: url('assets/characters/leo_sheet.png'); background-position: 0% 0%; }
+        .leo-scared    { background-image: url('assets/characters/leo_sheet.png'); background-position: 100% 0%; }
+        .leo-angry     { background-image: url('assets/characters/leo_sheet.png'); background-position: 0% 100%; }
+        .leo-tired     { background-image: url('assets/characters/leo_sheet.png'); background-position: 100% 100%; }
 
-        .aria-neutral  { background-image: url('assets/characters/aria_sheet.png'); background-position: 0 0; }
-        .aria-hostile  { background-image: url('assets/characters/aria_sheet.png'); background-position: -300px 0; }
+        .aria-neutral  { background-image: url('assets/characters/aria_sheet.png'); background-position: 0% 0%; }
+        .aria-hostile  { background-image: url('assets/characters/aria_sheet.png'); background-position: 100% 0%; }
 
-        .mason-crazed  { background-image: url('assets/characters/mason_sheet.png'); background-position: 0 0; }
+        .mason-crazed  { background-image: url('assets/characters/mason_sheet.png'); background-position: 0% 0%; }
 
-        /* Диалоговое окно (CSS UI) */
+        /* Диалоговое окно */
         #dialogue-box {
             position: absolute;
             bottom: 20px;
@@ -103,10 +107,10 @@
             line-height: 1.4;
         }
 
-        /* Кнопки выбора (CSS UI) */
+        /* Контейнер для кнопок выбора */
         #choice-container {
             position: absolute;
-            top: 40%;
+            top: 35%;
             left: 50%;
             transform: translate(-50%, -50%);
             display: flex;
@@ -145,7 +149,7 @@
             Убеждение ИИ: <span id="stat-value">50</span>%
         </div>
 
-        <!-- Спрайт -->
+        <!-- Спрайт персонажа -->
         <div id="character-sprite" class="aria-neutral"></div>
 
         <!-- Выборы -->
